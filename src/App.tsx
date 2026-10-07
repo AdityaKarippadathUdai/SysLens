@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { SystemOverview } from './components/dashboard/SystemOverview';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { ProcessTable } from './components/processes/ProcessTable';
 import { useSystemMetrics } from './hooks/useSystemMetrics';
 import { useSystemStore } from './stores/systemStore';
@@ -9,8 +10,12 @@ import type { SystemMetrics } from './types/system';
 const navItems = ['Dashboard', 'Performance', 'Processes'];
 
 function App() {
-  const { isMonitoring } = useSystemMetrics();
+  const { isMonitoring, status, error, retry } = useSystemMetrics();
   const { cpu, memory, gpu, disks, networks, processes } = useSystemStore();
+
+  useEffect(() => {
+    console.info('[Frontend] Dashboard rendered');
+  }, []);
 
   const snapshot = useMemo<SystemMetrics | null>(() => {
     if (!cpu && !memory && !gpu && processes.length === 0) {
@@ -80,7 +85,20 @@ function App() {
             </div>
           </header>
 
-          <SystemOverview snapshot={snapshot} loading={!snapshot} />
+          {status === 'error' && (
+            <div role="alert" className="mb-6 rounded-lg border border-rose-800 bg-rose-950/40 p-4 text-sm text-rose-100">
+              <div className="font-semibold">Unable to retrieve system metrics</div>
+              <p className="mt-2 break-words text-rose-200">{error}</p>
+              <button
+                type="button"
+                onClick={retry}
+                className="mt-3 rounded-md bg-rose-200 px-3 py-2 font-medium text-rose-950 hover:bg-white"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          <SystemOverview snapshot={snapshot} loading={status === 'loading' && !snapshot} />
           <div className="mt-6">
             <ProcessTable processes={processes} />
           </div>
@@ -91,3 +109,11 @@ function App() {
 }
 
 export default App;
+
+export function AppWithErrorBoundary() {
+  return (
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  );
+}
